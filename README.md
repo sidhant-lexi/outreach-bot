@@ -9,6 +9,7 @@ It won't message:
 - people who never replied to you
 - people who messaged you and never got a reply
 - group chats or sponsored messages
+- anyone who has an unsent draft sitting in the message box
 - anyone who already has the promo, whether the script sent it or you did
 
 It does nothing unless you ask it to: a plain run is a dry run that only reports who
@@ -183,17 +184,78 @@ script.
 
 For each conversation in your inbox, newest first:
 
-1. **Group chats** (several names) and **sponsored** messages are skipped.
-2. **Already messaged:** if the conversation is in `sent_log.json`, it's skipped.
-3. **Full history:** the script scrolls to the top of the chat so older messages load.
-4. **Promo already in the chat?** It reads the chat and skips anyone who already
+1. **Obvious group chats** are skipped from the inbox name alone: several names
+   ("Jane Doe, Bob Ray", "Jane and Bob") or "and 2 others". Letters after one
+   person's name don't count, so "Jane Smith, PhD" or "Ravi Kumar, Jr." is still
+   one person. **Sponsored** messages are skipped too.
+2. **Already messaged:** the script reads the chat's link from the inbox. If that
+   chat is in `sent_log.json`, it's skipped without being opened.
+3. **Right chat open?** After clicking, the script waits until the open chat's link
+   *and* the name in its header both match the person it clicked. A chat that
+   doesn't load in 15 seconds, or where they don't match, is skipped. It checks
+   again after loading history, before typing and before clicking Send, so a
+   message can't land in the previous chat or one you clicked on during a wait.
+4. **Full history:** the script scrolls to the top of the chat so older messages load.
+5. **Promo already in the chat?** It reads the chat and skips anyone who already
    has a message closely matching your promo. This covers a fresh start, a deleted
    or missing `sent_log.json`, a run on another computer, and promos you sent by
    hand. During `--send` runs, these people are added to `sent_log.json`, so later
    runs skip them straight away.
-5. **Did you both talk?** It counts the messages you sent and the messages they
-   sent. Both have to be at least 1, otherwise it's skipped as "never conversed".
-6. Everyone left gets the message, until `--max-messages` is reached.
+6. **Did you both talk?** Two separate signals have to agree that you *and* they
+   have each sent at least one message:
+   - how LinkedIn styles the other person's messages;
+   - the sender name shown above each group of messages, compared with your name.
+
+   If they agree nobody replied, it's "never conversed". If they disagree, or the
+   names can't be read, the chat is skipped as **unsure** and never messaged.
+   **Three unsure chats in a row stop the run**, since that usually means LinkedIn
+   changed its page (see [Troubleshooting](#troubleshooting)).
+7. **Group chats, judged by who wrote.** Once the script knows which messages are
+   yours, it counts who else has written. A chat is skipped as a group chat if more
+   than one other person has written, or if the one other person's name doesn't
+   match the chat's name. The second case is how named groups ("Project Team")
+   show up.
+8. **Unsent draft?** If there's already text in the message box, the chat is
+   skipped and the draft is left exactly as it is. The script checks again right
+   before typing, in case you typed something during a wait.
+9. Everyone left gets the message, until `--max-messages` is reached.
+
+### When LinkedIn pushes back
+
+The script watches for LinkedIn wanting your attention:
+- the browser being sent to a security check, login or verification page;
+- a pop-up or notice mentioning things like unusual activity, a limit, a
+  restriction or verification, or saying a message couldn't be sent.
+
+It checks before each chat, while chats load, before typing, before clicking Send
+and right after sending. If it sees any of these, the run **stops straight away**:
+- It doesn't touch the page again or try to get past the check.
+- `report.csv` is saved, with a final `(run stopped)` row that says what LinkedIn
+  showed.
+- If a warning appears right after a Send, that chat is marked `unconfirmed`.
+
+Deal with it by hand: run `login`, sort it out in that browser, and give it a day
+or two before sending again. If a warning is already showing when you start, the
+script won't run at all.
+
+`report.csv` is now also saved if the script stops for any other reason, including
+a crash.
+
+This is based on keywords, so a harmless pop-up that happens to say "limit" will
+also stop the run. That's deliberate. The words are listed in `WARNING_WORDS` at
+the top of the script.
+
+### When a send goes wrong
+
+- The chat is written to `sent_log.json` as `pending` *before* Send is clicked, so a
+  crash right after the click can't lead to a second message.
+- Every Send click counts toward `--max-messages` and the pacing waits, even if the
+  script can't confirm it went through.
+- If the message box doesn't empty within 10 seconds of clicking Send, the chat is
+  marked `unconfirmed` and **the run stops**. Check that chat by hand. It won't be
+  messaged again.
+- If Send can't be clicked at all, or anything else goes wrong while sending, the
+  box is cleared, nothing is logged and **the run stops**.
 
 The promo check compares against the current `message.txt`. Small edits to the
 message still count as the same promo. If you rewrite it for a new campaign,
@@ -226,11 +288,29 @@ you out. Run `uv run linkedin_dm_promo.py login` again.
 earlier run is probably still waiting for you to press Enter. Finish it or stop it
 first. Only one run can use the saved login at a time.
 
-**It finds no conversations, or marks everyone "never conversed".** LinkedIn
-changes its page layout from time to time, and the script looks for elements by
-their names on the page. Those names are all in the `SEL` dictionary near the top
-of `linkedin_dm_promo.py`. Open LinkedIn messaging in the script's browser,
-right-click → Inspect on the element that isn't being found, and update its entry.
+**It finds no conversations, or marks everyone "never conversed" or "unsure".**
+LinkedIn changes its page layout from time to time, and the script looks for
+elements by their names on the page. Those names are all in the `SEL` dictionary
+near the top of `linkedin_dm_promo.py`. Open LinkedIn messaging in the script's
+browser, right-click → Inspect on the element that isn't being found, and update
+its entry. The reason in `report.csv` says what couldn't be read:
+
+- *couldn't read this chat's link* → `convo_link`
+- *the chat that opened isn't the one clicked* → `thread_title` (the name at the top
+  of an open chat)
+- *couldn't read sender names* → `group_sender_name`
+- *messages look like yours but none show your name* → your name above your own
+  messages differs from your profile name. Compare the two in the browser.
+
+**The run stopped with "LinkedIn sent the browser to /checkpoint…" or "LinkedIn is
+showing: …".** See [When LinkedIn pushes back](#when-linkedin-pushes-back). If the
+pop-up turns out to be harmless, you can remove the word that caught it from
+`WARNING_WORDS`. Only do that if you're sure it isn't a warning.
+
+**A chat is marked "unconfirmed" or "pending".** Send was clicked but the script
+couldn't confirm the message went out (`unconfirmed`), or it stopped mid-send
+(`pending`). Open that chat on LinkedIn and check. The script won't message that
+chat again either way. `history` lists these.
 
 **A promo was left typed in a DM.** The run was interrupted before the box was
 cleared, for example by Ctrl+C. Open that conversation on LinkedIn and delete the
