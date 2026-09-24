@@ -1,0 +1,11 @@
+[project]
+name = "linkedin-bot"
+version = "0.1.0"
+description = "Send a promo DM to LinkedIn contacts you have already conversed with"
+requires-python = ">=3.9"
+dependencies = [
+    "playwright>=1.47",
+]
+
+[tool.uv]
+package = false

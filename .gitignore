@@ -1,0 +1,14 @@
+# Browser profile with your LinkedIn login. Never commit.
+.linkedin_profile/
+
+# Your contacts and who you've messaged
+sent_log.json
+report.csv
+messaged*.csv
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+.DS_Store

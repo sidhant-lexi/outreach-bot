@@ -1,0 +1,5 @@
+Hi {first_name}, hope you're doing well!
+
+Quick one: we just launched [PRODUCT], which [ONE-LINE VALUE PROP]. Given what we talked about before, I thought it might be useful for you.
+
+Happy to share more if you're interested. No worries if not!
