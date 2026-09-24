@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A single-file Playwright (sync API, Python) script, `linkedin_dm_promo.py`, that walks the user's LinkedIn inbox and sends a promo DM only to people they have genuinely conversed with. `README.md` is the user-facing doc; keep it in sync with any change to options, defaults or behaviour, and keep the module docstring's usage block in sync too.
 
+Remote: `git@github.com:sidhant-lexi/outreach-bot.git`, a private repo on the personal `sidhant-lexi` account, deliberately not the Getlexi org. `.gitignore` must keep covering `.linkedin_profile/` (the login session) and the contact files (`sent_log.json`, `report.csv`, `messaged*.csv`).
+
 ## Commands
 
 ```bash
@@ -18,7 +20,7 @@ uv run linkedin_dm_promo.py run --send    # real sends
 uv run linkedin_dm_promo.py history       # who has been messaged (--csv FILE)
 ```
 
-There is no test suite or linter. A fake-page harness (a stand-in `Page`/locator object patched in for `sync_playwright` and `launch`) is the practical way to test `cmd_run` end to end without LinkedIn. Real LinkedIn behaviour (selectors, load timing) can only be checked with the user's logged-in session. The network-free pieces (`Pacer`, `promo_already_in_chat`, `ask_user`, `wait_between_sends`) can be checked by importing the module and feeding them fake inputs; `promo_already_in_chat` only needs an object with `locator(sel).all_inner_texts()`.
+There is no test suite or linter. A fake-page harness (a stand-in `Page`/locator object patched in for `sync_playwright` and `launch`) is the practical way to test `cmd_run` end to end without LinkedIn. Real LinkedIn behaviour (selectors, load timing) can only be checked with the user's logged-in session. The network-free pieces (`Pacer`, `promo_already_in_chat`, `looks_like_group_name`, `thread_key`, `names_match`, `ask_user`, `wait_between_sends`) can be checked by importing the module and feeding them fake inputs; `promo_already_in_chat` only needs an object with `locator(sel).all_inner_texts()`.
 
 Never run `run --send` yourself: it sends real messages from the user's account. `login` and `run --preview` also need the user at the keyboard.
 

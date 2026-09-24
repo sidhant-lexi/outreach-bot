@@ -1,4 +1,4 @@
-# LinkedIn DM promo sender
+# Outreach bot
 
 A Playwright script that goes through your LinkedIn inbox and sends a promotional
 message **only to people you've actually had a conversation with**, meaning both
@@ -23,6 +23,11 @@ would get the message.
 ## Setup
 
 You need Python 3.9+ and either [uv](https://docs.astral.sh/uv/) or pip.
+
+```bash
+git clone git@github.com:sidhant-lexi/outreach-bot.git
+cd outreach-bot
+```
 
 **With uv**
 
@@ -152,6 +157,9 @@ It also lists people whose chat already had the promo when the script checked it
 during a `--send` run. These are marked "found in chat", and their date is when the
 script found it, not when the promo was sent.
 
+Sends the script couldn't confirm are flagged `pending` or `unconfirmed`. Check
+those chats by hand.
+
 ### `login`
 
 Opens the browser so you can log in by hand. Run it again if your session expires
@@ -187,7 +195,9 @@ For each conversation in your inbox, newest first:
 1. **Obvious group chats** are skipped from the inbox name alone: several names
    ("Jane Doe, Bob Ray", "Jane and Bob") or "and 2 others". Letters after one
    person's name don't count, so "Jane Smith, PhD" or "Ravi Kumar, Jr." is still
-   one person. **Sponsored** messages are skipped too.
+   one person. A job title after a comma ("Alex Chen, CEO @ Acme") is treated as a
+   group and skipped, which errs on the safe side. **Sponsored** messages are
+   skipped too.
 2. **Already messaged:** the script reads the chat's link from the inbox. If that
    chat is in `sent_log.json`, it's skipped without being opened.
 3. **Right chat open?** After clicking, the script waits until the open chat's link
@@ -220,6 +230,10 @@ For each conversation in your inbox, newest first:
    before typing, in case you typed something during a wait.
 9. Everyone left gets the message, until `--max-messages` is reached.
 
+The promo check compares against the current `message.txt`. Small edits to the
+message still count as the same promo. If you rewrite it for a new campaign,
+people who got the old version will get the new one.
+
 ### When LinkedIn pushes back
 
 The script watches for LinkedIn wanting your attention:
@@ -238,8 +252,8 @@ Deal with it by hand: run `login`, sort it out in that browser, and give it a da
 or two before sending again. If a warning is already showing when you start, the
 script won't run at all.
 
-`report.csv` is now also saved if the script stops for any other reason, including
-a crash.
+`report.csv` is saved whenever the run ends, including after any other early stop
+or a crash.
 
 This is based on keywords, so a harmless pop-up that happens to say "limit" will
 also stop the run. That's deliberate. The words are listed in `WARNING_WORDS` at
@@ -257,23 +271,20 @@ the top of the script.
 - If Send can't be clicked at all, or anything else goes wrong while sending, the
   box is cleared, nothing is logged and **the run stops**.
 
-The promo check compares against the current `message.txt`. Small edits to the
-message still count as the same promo. If you rewrite it for a new campaign,
-people who got the old version will get the new one.
-
 ## Files
 
 | File                  | What it is |
 | --------------------- | ---------- |
 | `linkedin_dm_promo.py`| The script. |
 | `message.txt`         | Your promo text. |
-| `report.csv`          | Written every run: each conversation checked, message counts, and why it was sent or skipped. Overwritten each time. |
-| `sent_log.json`       | Everyone the script has messaged, or found already had the promo. It's a quick record of who to skip. The chat check is a backup if the file is lost, so keep it anyway. |
+| `report.csv`          | Written at the end of every run, even if it stops early or crashes: each conversation checked, message counts, and why it was sent or skipped. Overwritten each time. |
+| `sent_log.json`       | Everyone the script has messaged (`sent`, or `pending`/`unconfirmed` if it couldn't confirm), or found already had the promo. Nobody in it is messaged again. The chat check is a backup if the file is lost, so keep it anyway. |
 | `.linkedin_profile/`  | The script's browser profile, including your LinkedIn login. **Treat it like a password.** |
 | `pyproject.toml`, `uv.lock`, `requirements.txt` | Dependencies for uv and pip. |
 
-If you put this folder in git, don't commit `.linkedin_profile/`, `sent_log.json`
-or `report.csv`, since they contain your login and your contacts. Commit `uv.lock`.
+The included `.gitignore` keeps `.linkedin_profile/`, `sent_log.json`, `report.csv`
+and `messaged*.csv` out of git, because they contain your login and your contacts.
+If you export `history` under another name, don't commit that file either.
 
 If you send the promo to someone by hand, the script still skips them: it finds the
 message in the chat. The exception is a promo worded very differently from
